@@ -1,27 +1,41 @@
 ============================= test session starts ==============================
 platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /home/claude/venv2/bin/python
-cachedir: .pytest_cache
 rootdir: /home/claude/refined
 configfile: pytest.ini
 testpaths: tests
-collecting ... collected 17 items
+collecting ... collected 32 items
 
-tests/test_ticket_processor.py::test_valid_input_is_cleaned_and_typed PASSED [  5%]
-tests/test_ticket_processor.py::test_malformed_csv_raises_invalid_csv_error PASSED [ 11%]
-tests/test_ticket_processor.py::test_ragged_row_raises_invalid_csv_error PASSED [ 17%]
-tests/test_ticket_processor.py::test_missing_file_raises_file_not_found PASSED [ 23%]
-tests/test_ticket_processor.py::test_binary_file_raises_invalid_csv_error PASSED [ 29%]
-tests/test_ticket_processor.py::test_zero_byte_file_raises_empty_dataset_error PASSED [ 35%]
-tests/test_ticket_processor.py::test_header_only_file_raises_empty_dataset_error PASSED [ 41%]
-tests/test_ticket_processor.py::test_missing_columns_are_reported_clearly PASSED [ 47%]
-tests/test_ticket_processor.py::test_validate_before_load_gives_clear_message PASSED [ 52%]
-tests/test_ticket_processor.py::test_duplicate_ids_keep_first_and_are_counted PASSED [ 58%]
-tests/test_ticket_processor.py::test_invalid_and_missing_values_follow_the_rules PASSED [ 64%]
-tests/test_ticket_processor.py::test_missing_numbers_are_not_imputed_by_default PASSED [ 70%]
-tests/test_ticket_processor.py::test_median_imputation_when_enabled PASSED [ 76%]
-tests/test_ticket_processor.py::test_raw_file_is_not_modified_and_cannot_be_overwritten PASSED [ 82%]
-tests/test_ticket_processor.py::test_analytics_match_hand_calculation PASSED [ 88%]
-tests/test_ticket_processor.py::test_analytics_on_provided_tickets_csv_manually_verified PASSED [ 94%]
-tests/test_ticket_processor.py::test_analytics_with_all_values_missing PASSED [100%]
+tests/test_ticket_processor.py::test_valid_input_is_cleaned_and_typed PASSED [  3%]
+tests/test_ticket_processor.py::test_malformed_csv_raises_invalid_csv_error PASSED [  6%]
+tests/test_ticket_processor.py::test_ragged_row_raises_invalid_csv_error PASSED [  9%]
+tests/test_ticket_processor.py::test_missing_file_raises_file_not_found PASSED [ 12%]
+tests/test_ticket_processor.py::test_binary_file_raises_invalid_csv_error PASSED [ 15%]
+tests/test_ticket_processor.py::test_zero_byte_file_raises_empty_dataset_error PASSED [ 18%]
+tests/test_ticket_processor.py::test_header_only_file_raises_empty_dataset_error PASSED [ 21%]
+tests/test_ticket_processor.py::test_missing_columns_are_reported_clearly PASSED [ 25%]
+tests/test_ticket_processor.py::test_validate_before_load_gives_clear_message PASSED [ 28%]
+tests/test_ticket_processor.py::test_duplicate_ids_keep_first_and_are_counted PASSED [ 31%]
+tests/test_ticket_processor.py::test_invalid_and_missing_values_follow_the_rules PASSED [ 34%]
+tests/test_ticket_processor.py::test_missing_numbers_are_not_imputed_by_default PASSED [ 37%]
+tests/test_ticket_processor.py::test_median_imputation_when_enabled PASSED [ 40%]
+tests/test_ticket_processor.py::test_raw_file_is_not_modified_and_cannot_be_overwritten PASSED [ 43%]
+tests/test_ticket_processor.py::test_analytics_match_hand_calculation PASSED [ 46%]
+tests/test_ticket_processor.py::test_analytics_on_provided_tickets_csv_manually_verified PASSED [ 50%]
+tests/test_ticket_processor.py::test_analytics_with_all_values_missing PASSED [ 53%]
+tests/test_ticket_processor.py::test_infinite_resolution_time_is_invalid_and_never_averaged[inf] PASSED [ 56%]
+tests/test_ticket_processor.py::test_infinite_resolution_time_is_invalid_and_never_averaged[+inf] PASSED [ 59%]
+tests/test_ticket_processor.py::test_infinite_resolution_time_is_invalid_and_never_averaged[-inf] PASSED [ 62%]
+tests/test_ticket_processor.py::test_infinite_resolution_time_is_invalid_and_never_averaged[Infinity] PASSED [ 65%]
+tests/test_ticket_processor.py::test_infinite_resolution_time_is_invalid_and_never_averaged[-Infinity] PASSED [ 68%]
+tests/test_ticket_processor.py::test_infinite_resolution_time_is_invalid_and_never_averaged[1e999] PASSED [ 71%]
+tests/test_ticket_processor.py::test_infinite_or_text_rating_is_invalid_and_counted[inf] PASSED [ 75%]
+tests/test_ticket_processor.py::test_infinite_or_text_rating_is_invalid_and_counted[-inf] PASSED [ 78%]
+tests/test_ticket_processor.py::test_infinite_or_text_rating_is_invalid_and_counted[abc] PASSED [ 81%]
+tests/test_ticket_processor.py::test_analytics_skip_infinite_values_even_if_given_dirty_data PASSED [ 84%]
+tests/test_ticket_processor.py::test_valid_numbers_still_work_after_the_finite_check PASSED [ 87%]
+tests/test_ticket_processor.py::test_duplicate_header_with_conflicting_values_is_rejected PASSED [ 90%]
+tests/test_ticket_processor.py::test_duplicate_header_after_trimming_spaces_is_rejected PASSED [ 93%]
+tests/test_ticket_processor.py::test_duplicate_header_in_any_column_is_rejected PASSED [ 96%]
+tests/test_ticket_processor.py::test_unique_headers_with_spaces_and_a_leading_blank_line_still_load PASSED [100%]
 
-============================== 17 passed in 0.30s ==============================
+============================== 32 passed in 0.47s ==============================

@@ -12,8 +12,11 @@ def main():
 
     try:
         processor.load_data()
+        print("CSV loaded successfully!")
         processor.validate_columns()
+        print("Column validation successful!")
         cleaned_data = processor.clean_data()
+        print("Data cleaning completed successfully!")
     except (TicketDataError, FileNotFoundError) as error:
         print(f"\nERROR: {error}")
         return 1

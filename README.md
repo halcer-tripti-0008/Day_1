@@ -62,6 +62,7 @@ python3 -m pytest -v
 | Missing `ticket_id` | Row removed (the ticket cannot be identified); counted in the report |
 | Duplicate `ticket_id` | The **first** occurrence is kept, later ones are removed and counted |
 | Non-numeric `resolution_time_hours` / `customer_rating` (e.g. `invalid`) | Becomes missing; counted |
+| Infinite values (`inf`, `-inf`, `Infinity`, `1e999`) in either numeric column | Treated as invalid (one rule for +inf and -inf), become missing; counted as invalid, not as negative. Analytics also skip non-finite values, so an average can never be infinite |
 | Negative resolution time | Treated as invalid, becomes missing; counted |
 | Rating outside 1–5 or not a whole number | Treated as invalid, becomes missing; counted |
 | Missing category / priority / description / status | Filled with `Unknown` |
@@ -70,9 +71,21 @@ python3 -m pytest -v
 
 The original CSV is only read, never written. `save_cleaned_data` refuses to write to the raw file's path.
 
+## Failure behaviour (errors raised)
+All errors below inherit from `TicketDataError` (a `ValueError`). `main.py` prints `ERROR: <message>` and exits with code 1.
+
+| Situation | Result |
+|---|---|
+| File does not exist | `FileNotFoundError` |
+| Zero-byte file, or header with no data rows | `EmptyDatasetError` |
+| Malformed rows, rows with more fields than the header, non-UTF-8/binary file | `InvalidCSVError` |
+| **Repeated column name in the header** (also after stripping spaces, e.g. `status` and ` status `) | `InvalidCSVError` naming the duplicated column(s). The raw header is checked before pandas can rename it to `status.1` |
+| One or more required columns missing | `MissingColumnsError` listing every missing column |
+
 ## Limitations
 - Keeping the first duplicate is a default rule; the real business rule (e.g. keep the latest update) should be confirmed.
 - The whole file is loaded into memory.
+- Column-name matching is case-sensitive: `Status` is not accepted as `status`.
 - Valid priorities/statuses are not checked against a fixed list; only spacing and case are normalised.
 - Average resolution time includes every ticket that has a valid time, whatever its status.
 - Median imputation (if enabled) uses the whole dataset, so it must not be used before a train/test split in ML work (data leakage).

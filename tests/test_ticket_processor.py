@@ -219,3 +219,88 @@ def test_analytics_with_all_values_missing(tmp_path):
     df = run(write_csv(tmp_path, "1,Billing,Low,x,,,Open\n")).get_cleaned_data()
     report = TicketAnalytics(df).analyze()
     assert report["average_customer_rating"] is None
+
+
+# 9. regression: non-finite numbers (code review P1) -------------------------------
+INF_ROWS = (
+    "T-1,Billing,High,valid,{time},{rating},Resolved\n"
+    "T-2,Billing,Low,valid,2,4,Open\n"
+)
+
+
+@pytest.mark.parametrize("bad", ["inf", "+inf", "-inf", "Infinity", "-Infinity", "1e999"])
+def test_infinite_resolution_time_is_invalid_and_never_averaged(tmp_path, bad):
+    path = write_csv(tmp_path, INF_ROWS.format(time=bad, rating=5))
+    processor = run(path)
+    df = processor.get_cleaned_data().set_index("ticket_id")
+
+    assert pd.isna(df.loc["T-1", "resolution_time_hours"])        # inf -> missing
+    assert df.loc["T-2", "resolution_time_hours"] == 2.0          # neighbouring row intact
+    assert processor.invalid_report["invalid_resolution_time_hours"] == 1
+    assert processor.invalid_report["negative_resolution_time"] == 0  # -inf is not "negative"
+
+    report = TicketAnalytics(df.reset_index(), processor.missing_report,
+                             processor.invalid_report).analyze()
+    assert report["average_resolution_time_by_category"] == {"Billing": 2.0}  # not inf
+
+
+@pytest.mark.parametrize("bad", ["inf", "-inf", "abc"])
+def test_infinite_or_text_rating_is_invalid_and_counted(tmp_path, bad):
+    path = write_csv(tmp_path, INF_ROWS.format(time=1, rating=bad))
+    processor = run(path)
+    df = processor.get_cleaned_data().set_index("ticket_id")
+    assert pd.isna(df.loc["T-1", "customer_rating"]) and df.loc["T-2", "customer_rating"] == 4
+    assert processor.invalid_report["invalid_customer_rating"] == 1
+    assert TicketAnalytics(df.reset_index()).analyze()["average_customer_rating"] == 4.0
+
+
+def test_analytics_skip_infinite_values_even_if_given_dirty_data():
+    dirty = pd.DataFrame({
+        "category": ["Billing", "Billing"],
+        "priority": ["High", "Low"],
+        "resolution_time_hours": [float("inf"), 2.0],
+        "customer_rating": [float("-inf"), 4.0],
+        "status": ["Open", "Open"],
+    })
+    report = TicketAnalytics(dirty).analyze()
+    assert report["average_resolution_time_by_category"] == {"Billing": 2.0}
+    assert report["average_customer_rating"] == 4.0
+
+
+def test_valid_numbers_still_work_after_the_finite_check(tmp_path):
+    path = write_csv(tmp_path, "T-1,Billing,High,ok,0,1,Open\nT-2,Billing,Low,ok,1e3,5,Open\n")
+    df = run(path).get_cleaned_data()
+    assert list(df["resolution_time_hours"]) == [0.0, 1000.0]   # zero and sci-notation are valid
+
+
+# 10. regression: duplicate CSV headers (code review P1) -------------------------------
+def test_duplicate_header_with_conflicting_values_is_rejected(tmp_path):
+    path = write_csv(
+        tmp_path,
+        "T-1,Billing,High,valid,2,5,Resolved,Open\n",
+        header=HEADER.rstrip("\n") + ",status\n",
+    )
+    with pytest.raises(InvalidCSVError, match="duplicate column name") as error:
+        TicketDataProcessor(path).load_data()
+    assert "status" in str(error.value)
+
+
+def test_duplicate_header_after_trimming_spaces_is_rejected(tmp_path):
+    header = "ticket_id,category,priority,description,resolution_time_hours,customer_rating,status, status \n"
+    path = write_csv(tmp_path, "T-1,Billing,High,valid,2,5,Resolved,Open\n", header=header)
+    with pytest.raises(InvalidCSVError, match="duplicate column name"):
+        TicketDataProcessor(path).load_data()
+
+
+def test_duplicate_header_in_any_column_is_rejected(tmp_path):
+    header = HEADER.replace("priority", "category")  # category appears twice
+    path = write_csv(tmp_path, "T-1,Billing,High,valid,2,5,Resolved\n", header=header)
+    with pytest.raises(InvalidCSVError, match="category"):
+        TicketDataProcessor(path).load_data()
+
+
+def test_unique_headers_with_spaces_and_a_leading_blank_line_still_load(tmp_path):
+    header = "\n ticket_id , category ,priority,description,resolution_time_hours,customer_rating,status\n"
+    path = write_csv(tmp_path, "T-1,Billing,High,valid,2,5,Resolved\n", header=header)
+    df = run(path).get_cleaned_data()
+    assert len(df) == 1 and df.loc[0, "category"] == "Billing"

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 
@@ -23,9 +24,20 @@ class TicketAnalytics:
         )
         return int(status.isin(self.UNRESOLVED_STATUSES).sum())
 
+    @staticmethod
+    def _finite(series):
+        """Numbers only: missing AND infinite values become NaN, so they are
+        skipped by every average (an infinite value can never reach a mean)."""
+        numbers = pd.to_numeric(series, errors="coerce").astype("float64")
+        return numbers.where(np.isfinite(numbers))
+
     def _average_rating(self):
-        mean = self.df["customer_rating"].mean()  # missing values are skipped
+        mean = self._finite(self.df["customer_rating"]).mean()
         return None if pd.isna(mean) else round(float(mean), 2)
+
+    def _average_resolution_by_category(self):
+        times = self._finite(self.df["resolution_time_hours"])
+        return times.groupby(self.df["category"]).mean().round(2).to_dict()
 
     def analyze(self):
         report = {
@@ -35,7 +47,7 @@ class TicketAnalytics:
                 {k: int(v) for k, v in self.df["priority"].value_counts().items()},
 
             "average_resolution_time_by_category":
-                self.df.groupby("category")["resolution_time_hours"].mean().round(2).to_dict(),
+                self._average_resolution_by_category(),
 
             "average_customer_rating": self._average_rating(),
 

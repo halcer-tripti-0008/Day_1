@@ -1,8 +1,16 @@
+import csv
+from collections import Counter
 from pathlib import Path
+from typing import Union
 
+import numpy as np
 import pandas as pd
 
 
+# ---------------------------------------------------------------------------
+# Meaningful exceptions. They inherit from ValueError so older code that does
+# `except ValueError` still works, but callers can now catch the exact problem.
+# ---------------------------------------------------------------------------
 class TicketDataError(ValueError):
     """Base class for all ticket-data problems."""
 
@@ -24,6 +32,22 @@ class MissingColumnsError(TicketDataError):
 
 
 class TicketDataProcessor:
+    """Loads, validates and cleans a support-ticket CSV.
+
+    The raw CSV is only ever read. The cleaned data is a separate DataFrame.
+
+    Cleaning rules (also listed in README.md):
+      1. Text is stripped; category/priority/status are converted to Title Case.
+      2. Rows without a ticket_id are removed.
+      3. Duplicate ticket_ids: the FIRST occurrence is kept, later ones removed.
+      4. resolution_time_hours / customer_rating are converted to numbers;
+         non-numeric text becomes missing.
+      5. Negative resolution times, ratings outside 1-5 and non-whole ratings
+         are treated as invalid and become missing.
+      6. Missing category/priority/description/status become "Unknown".
+      7. Missing numbers stay missing, unless impute_missing=True, in which
+         case they are filled with the column median.
+    """
 
     REQUIRED_COLUMNS = [
         "ticket_id",
@@ -42,7 +66,7 @@ class TicketDataProcessor:
     RATING_MAX = 5
     UNKNOWN = "Unknown"
 
-    def __init__(self, file_path, impute_missing=False):
+    def __init__(self, file_path: Union[str, Path], impute_missing: bool = False):
         self.file_path = file_path
         self.impute_missing = impute_missing
         self.df = None
@@ -52,8 +76,9 @@ class TicketDataProcessor:
         self.invalid_report = {}
 
     # ------------------------------------------------------------------ load
-    def load_data(self):
+    def load_data(self) -> pd.DataFrame:
         try:
+            self._check_header_names()  # must run BEFORE pandas renames duplicates
             self.df = pd.read_csv(self.file_path)
         except FileNotFoundError as exc:
             raise FileNotFoundError(
@@ -61,7 +86,7 @@ class TicketDataProcessor:
             ) from exc
         except pd.errors.EmptyDataError as exc:
             raise EmptyDatasetError("The CSV file is empty.") from exc
-        except (pd.errors.ParserError, UnicodeDecodeError) as exc:
+        except (pd.errors.ParserError, UnicodeDecodeError, csv.Error) as exc:
             raise InvalidCSVError("Invalid CSV format.") from exc
 
         # If every row has MORE fields than the header, pandas does not fail:
@@ -75,11 +100,36 @@ class TicketDataProcessor:
             raise EmptyDatasetError("The CSV file has a header but no data rows.")
 
         self.df.columns = [str(col).strip() for col in self.df.columns]
-        print("CSV loaded successfully!")
         return self.df
 
+    def _check_header_names(self) -> None:
+        """Reject repeated column names in the RAW header.
+
+        pandas silently renames a repeated header (status -> status, status.1),
+        so the extra column would be ignored without any warning. We read the
+        header line ourselves and compare the names after stripping spaces
+        (the same normalisation used for column names everywhere else).
+        """
+        try:
+            with open(self.file_path, newline="", encoding="utf-8-sig") as handle:
+                header = next((row for row in csv.reader(handle) if row), None)
+        except UnicodeDecodeError as exc:
+            raise InvalidCSVError(
+                "Invalid CSV format: file is not valid UTF-8 text."
+            ) from exc
+
+        if header is None:
+            return  # empty file: pandas reports it as EmptyDatasetError
+
+        names = [name.strip() for name in header]
+        duplicates = sorted(n for n, count in Counter(names).items() if count > 1)
+        if duplicates:
+            raise InvalidCSVError(
+                f"Invalid CSV header: duplicate column name(s) {duplicates}."
+            )
+
     # -------------------------------------------------------------- validate
-    def validate_columns(self):
+    def validate_columns(self) -> bool:
         if self.df is None:
             raise ValueError("Please load the CSV first.")
 
@@ -91,11 +141,10 @@ class TicketDataProcessor:
         if missing_columns:
             raise MissingColumnsError(missing_columns)
 
-        print("Column validation successful!")
         return True
 
     # ------------------------------------------------------------ duplicates
-    def handle_duplicates(self):
+    def handle_duplicates(self) -> pd.DataFrame:
         """Keep the first occurrence of each ticket_id (rule 3)."""
         if self.cleaned_df is None:
             raise ValueError("Please start cleaning first (call clean_data).")
@@ -112,7 +161,7 @@ class TicketDataProcessor:
         return self.cleaned_df
 
     # ----------------------------------------------------------------- clean
-    def clean_data(self):
+    def clean_data(self) -> pd.DataFrame:
         self.validate_columns()
 
         self.invalid_report = {}  # a new run must not add to old counts
@@ -131,7 +180,6 @@ class TicketDataProcessor:
         self._convert_numeric_columns()
         self._fill_missing_values()
 
-        print("Data cleaning completed successfully!")
         return self.cleaned_df
 
     def _normalise_text(self):
@@ -163,6 +211,11 @@ class TicketDataProcessor:
                 errors="coerce"
             )
 
+            # 'inf', '-inf', 'Infinity' or '1e999' convert to +/- infinity.
+            # That is not a usable number, so it becomes missing and is
+            # counted as invalid below (one rule for +inf and -inf).
+            converted = converted.mask(np.isinf(converted))
+
             invalid_mask = original.notna() & converted.isna()
 
             self.invalid_report[f"invalid_{col}"] = int(
@@ -191,7 +244,9 @@ class TicketDataProcessor:
             | (rating % 1 != 0)
         )
 
-        self.invalid_report["invalid_customer_rating"] = int(
+        # ADD to the non-numeric count found above (same key). Assigning with
+        # "=" would overwrite it, so 'abc' or 'inf' ratings were reported as 0.
+        self.invalid_report["invalid_customer_rating"] += int(
             invalid_rating.sum()
         )
 
@@ -229,13 +284,13 @@ class TicketDataProcessor:
         self.cleaned_df = self.cleaned_df.reset_index(drop=True)
 
     # --------------------------------------------------------------- outputs
-    def get_cleaned_data(self):
+    def get_cleaned_data(self) -> pd.DataFrame:
         if self.cleaned_df is None:
             raise ValueError("Please clean the data first.")
 
         return self.cleaned_df
 
-    def save_cleaned_data(self, output_path):
+    def save_cleaned_data(self, output_path: Union[str, Path]) -> Path:
         """Write the cleaned data to a SEPARATE file (never the raw CSV)."""
         if self.cleaned_df is None:
             raise ValueError("Please clean the data first.")
@@ -248,7 +303,7 @@ class TicketDataProcessor:
         self.cleaned_df.to_csv(output_path, index=False)
         return output_path
 
-    def show_report(self):
+    def show_report(self) -> None:
         if self.cleaned_df is None:
             raise ValueError("Please clean the data first.")
 
