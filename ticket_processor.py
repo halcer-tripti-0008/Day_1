@@ -3,10 +3,6 @@ from pathlib import Path
 import pandas as pd
 
 
-# ---------------------------------------------------------------------------
-# Meaningful exceptions. They inherit from ValueError so older code that does
-# `except ValueError` still works, but callers can now catch the exact problem.
-# ---------------------------------------------------------------------------
 class TicketDataError(ValueError):
     """Base class for all ticket-data problems."""
 
@@ -28,22 +24,6 @@ class MissingColumnsError(TicketDataError):
 
 
 class TicketDataProcessor:
-    """Loads, validates and cleans a support-ticket CSV.
-
-    The raw CSV is only ever read. The cleaned data is a separate DataFrame.
-
-    Cleaning rules (also listed in README.md):
-      1. Text is stripped; category/priority/status are converted to Title Case.
-      2. Rows without a ticket_id are removed.
-      3. Duplicate ticket_ids: the FIRST occurrence is kept, later ones removed.
-      4. resolution_time_hours / customer_rating are converted to numbers;
-         non-numeric text becomes missing.
-      5. Negative resolution times, ratings outside 1-5 and non-whole ratings
-         are treated as invalid and become missing.
-      6. Missing category/priority/description/status become "Unknown".
-      7. Missing numbers stay missing, unless impute_missing=True, in which
-         case they are filled with the column median.
-    """
 
     REQUIRED_COLUMNS = [
         "ticket_id",
