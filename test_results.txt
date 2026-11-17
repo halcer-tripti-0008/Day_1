@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.18, pytest-9.2.0, pluggy-1.7.0 -- /home/claude/venv2/bin/python
+cachedir: .pytest_cache
+rootdir: /home/claude/refined
+configfile: pytest.ini
+testpaths: tests
+collecting ... collected 17 items
+
+tests/test_ticket_processor.py::test_valid_input_is_cleaned_and_typed PASSED [  5%]
+tests/test_ticket_processor.py::test_malformed_csv_raises_invalid_csv_error PASSED [ 11%]
+tests/test_ticket_processor.py::test_ragged_row_raises_invalid_csv_error PASSED [ 17%]
+tests/test_ticket_processor.py::test_missing_file_raises_file_not_found PASSED [ 23%]
+tests/test_ticket_processor.py::test_binary_file_raises_invalid_csv_error PASSED [ 29%]
+tests/test_ticket_processor.py::test_zero_byte_file_raises_empty_dataset_error PASSED [ 35%]
+tests/test_ticket_processor.py::test_header_only_file_raises_empty_dataset_error PASSED [ 41%]
+tests/test_ticket_processor.py::test_missing_columns_are_reported_clearly PASSED [ 47%]
+tests/test_ticket_processor.py::test_validate_before_load_gives_clear_message PASSED [ 52%]
+tests/test_ticket_processor.py::test_duplicate_ids_keep_first_and_are_counted PASSED [ 58%]
+tests/test_ticket_processor.py::test_invalid_and_missing_values_follow_the_rules PASSED [ 64%]
+tests/test_ticket_processor.py::test_missing_numbers_are_not_imputed_by_default PASSED [ 70%]
+tests/test_ticket_processor.py::test_median_imputation_when_enabled PASSED [ 76%]
+tests/test_ticket_processor.py::test_raw_file_is_not_modified_and_cannot_be_overwritten PASSED [ 82%]
+tests/test_ticket_processor.py::test_analytics_match_hand_calculation PASSED [ 88%]
+tests/test_ticket_processor.py::test_analytics_on_provided_tickets_csv_manually_verified PASSED [ 94%]
+tests/test_ticket_processor.py::test_analytics_with_all_values_missing PASSED [100%]
+
+============================== 17 passed in 0.30s ==============================
